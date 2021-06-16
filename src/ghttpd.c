@@ -1,4 +1,8 @@
-#include "server.h" // ""  tells the preprocessor to search the same directory as the file
+#include "ghttpd.h" // ""  tells the preprocessor to search the same directory as the file
+
+//TODO
+// write code to parse HTTP request and yeet it into a struct
+// define format for config file and write a parser for it
 
 
 //Global variables 
@@ -42,7 +46,6 @@ static void set_sockaddr(struct sockaddr_in * addr){
 //    connections[threadID] += value;
 //    pthread_mutex_unlock(&lock);
 //}
-
 
 static int setup_listener(){
     int listen_sock;
@@ -98,11 +101,13 @@ static int setup_listener(){
 static void accept_conn(int fd, int pfd){
 
     #ifdef linux
-        struct epoll_event ev;
-
-    #else 
-        struct kevent ev;
+    struct epoll_event ev;
     #endif
+
+    #ifdef __FreeBSD__
+    struct kevent ev;
+    #endif
+
 
     struct sockaddr_in c_addr;//address of the client
     int c_addr_len = sizeof(c_addr);
@@ -125,17 +130,15 @@ static void accept_conn(int fd, int pfd){
     setsockopt(fd, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl));
 
     #ifdef linux
+    ev.events = EPOLLIN;
+    ev.data.fd = conn_sock;
+    epoll_ctl(pfd, EPOLL_CTL_ADD, conn_sock, &ev);  
+    #endif
 
-        ev.events = EPOLLIN;
-        ev.data.fd = conn_sock;
-        epoll_ctl(pfd, EPOLL_CTL_ADD, conn_sock, &ev);
-        
-    #else
-
-        memset(&ev, 0, sizeof(ev));
-        EV_SET(&ev, conn_sock, EVFILT_READ, EV_ADD, 0, 0, NULL);
-        kevent(pfd, &ev, 1, NULL, 0, NULL);
-
+    #ifdef __FreeBSD__
+    memset(&ev, 0, sizeof(ev));
+    EV_SET(&ev, conn_sock, EVFILT_READ, EV_ADD, 0, 0, NULL);
+    kevent(pfd, &ev, 1, NULL, 0, NULL);
     #endif
 
 }
@@ -158,7 +161,9 @@ void *polling_thread(void *data){
 
     #ifdef linux
     struct epoll_event evts[MAX_EVENTS];
-    #else
+    #endif
+
+    #ifdef __FreeBSD__ 
     struct kevent evts[MAX_EVENTS];
     #endif
 
@@ -174,9 +179,6 @@ void *polling_thread(void *data){
 
 
     //first we need to set up the addresses
-    
-    
-    
     #ifdef linux
     //create epoll instance
     struct epoll_event ev;
@@ -191,9 +193,9 @@ void *polling_thread(void *data){
     ev.events = EPOLLIN; //type of event we are looking for
     ev.data.fd = listen_sock;
     epoll_ctl(pfd, EPOLL_CTL_ADD, ev.data.fd, &ev);
-    
+    #endif
 
-    #else
+    #ifdef __FreeBSD__
     //create kqueue
     struct kevent ev;
 
@@ -209,14 +211,15 @@ void *polling_thread(void *data){
         perror("kevent failed");
     exit(EXIT_FAILURE);
     }
-
     #endif
 
     for (;;){
 
         #ifdef linux
         nfds = epoll_wait(pfd, evts, MAX_EVENTS, TIMEOUT);
-        #else
+        #endif
+
+        #ifdef __FreeBSD__
         struct timespec timeout = {TIMEOUT, 0};
         nfds = kevent(pfd, NULL, 0, evts, MAX_EVENTS, &timeout);
         #endif
@@ -224,10 +227,13 @@ void *polling_thread(void *data){
         //loop through all the fd's to find new connections
         for (int n = 0; n < nfds; ++n){
 
+            int current_fd;
+
             #ifdef linux
-            int current_fd = evts[n].data.fd;
-            #else  
-            int current_fd = evts[n].ident;
+            current_fd = evts[n].data.fd;
+            #endif
+            #ifdef __FreeBSD__  
+            current_fd = evts[n].ident;
             #endif
             
             if (current_fd == listen_sock){//listen socket ready means new connection
@@ -286,7 +292,8 @@ int main(int argc, char *argv[]){
     //print various configuration settings
     #ifdef linux
         printf("Running Linux\n");
-    #else
+    #endif
+#ifdef __FreeBSD__
         printf("Running freeBSD\n");
     #endif
 
@@ -302,17 +309,18 @@ int main(int argc, char *argv[]){
     //set cpu affinity
 
     #ifdef linux
+    #endif
 
-    #else
-        cpuset_t cpuset;
-        CPU_ZERO(&cpuset);
-        for (int j = 0; j < THREADS; j++)
-               CPU_SET(j, &cpuset);
+    #ifdef __FreeBSD__ //needs testing
+    cpuset_t cpuset;
+    CPU_ZERO(&cpuset);
+    for (int j = 0; j < THREADS; j++)
+        CPU_SET(j, &cpuset);
     #endif
 
 
-     for (int i=0; i < THREADS; i++){
-   
+    for (int i=0; i < THREADS; i++){
+
         struct t_args* args = malloc(sizeof(*args));
         args->threadID = i;
         args->listen_sock = listen_sock;
@@ -324,13 +332,13 @@ int main(int argc, char *argv[]){
             exit(0);
         }    
 
-        #ifdef linux
-        #else
-            rc = pthread_setaffinity_np(threads[i], sizeof(cpuset), &cpuset);
-            if (rc != 0)
-               perror("pthread_setaffinity_np");
+        #ifdef __FreeBSD__
+        rc = pthread_setaffinity_np(threads[i], sizeof(cpuset), &cpuset);
+        if (rc != 0)
+        perror("pthread_setaffinity_np");
         #endif
-    }
+        
+        }
 
     for (;;){
 

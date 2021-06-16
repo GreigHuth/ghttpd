@@ -16,8 +16,6 @@
 
 #ifdef linux
 #include <sys/epoll.h>
-
-#else 
 #include <sys/cpuset.h>
 #include <pthread_np.h> 
 #include <sys/event.h>
@@ -32,9 +30,11 @@
 
 
 
-//TODO
-//[] create struct for HTTP header 
+//used to store the parameters of an incoming HTTP request
+struct http_request{ 
 
-struct http_header{
+};
+
+struct http_response{
 
 };
