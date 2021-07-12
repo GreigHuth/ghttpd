@@ -1,5 +1,5 @@
 # G-HTTPD
-Gurgs HTTP server, a cross-platform high performance, multithreaded HTTP response server. I wrote this server as part of my dissertation. This server is still in its infancy and as such, only supports HTTP 200 requests.
+Gurgs HTTP server, a cross-platform high performance, multithreaded HTTP response server. I wrote this server as part of my dissertation. This server is still in its infancy and as such, only supports HTTP 200 requests. Also contains a minimal tcp client to test the server with.
 
 ## Current Features
 - Multithreaded
