@@ -25,8 +25,14 @@
 #include <sys/event.h>
 #endif
 
-#include "http/ghttpd.h" // ""  tells the preprocessor to search the same directory as the file
 
+#include "http/http_rq.h"
+#include "http/http_rp.h"
+
+#define PORT 1234
+#define Q_LEN 16
+#define MAX_EVENTS 1024
+#define BUFFER_SIZE 1024
 
 //TODO
 // write code to parse HTTP request and yeet it into a struct
