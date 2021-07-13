@@ -1,4 +1,32 @@
-#include "ghttpd.h" // ""  tells the preprocessor to search the same directory as the file
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <netinet/in.h> 
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+#include <netinet/tcp.h>
+
+#ifdef linux
+#include <sys/epoll.h>
+#endif
+
+#ifdef __FreeBSD__
+#include <sys/cpuset.h>
+#include <pthread_np.h> 
+#include <sys/event.h>
+#endif
+
+#include "http/ghttpd.h" // ""  tells the preprocessor to search the same directory as the file
+
 
 //TODO
 // write code to parse HTTP request and yeet it into a struct
